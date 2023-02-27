@@ -1,6 +1,7 @@
 
-<h1>USB Camera with CMOS camera and I2S audio recording capabilities. </h1>
+<h1> USB Stick Camera</h1>
 
+Processor: Cortex-M7 DSP (STM32F746)
 Camera: <br />&ensp;&ensp; OV5640 (1080p) <br /> <br />
 Audio: <br />&ensp;&ensp; Mems I2S <br /> <br />
 Storage: <br />&ensp;&ensp; SD Card (Up to 32GB) <br /> <br />
