@@ -2,7 +2,8 @@
 <h1> USB Stick Camera</h1>
 
 Processor: <br />&ensp;&ensp; Cortex-M7 DSP (STM32F746)) <br /> <br />
-Battery: <br />&ensp;&ensp; 500mAh Lithium Battery <br /> <br />
+Battery: <br />&ensp;&ensp; 500mAh Lithium Battery <br />
+&ensp;&ensp; Recharged through USB Connector <br /> <br />
 Camera: <br />&ensp;&ensp; OV5640 (1080p) <br /> <br />
 Audio: <br />&ensp;&ensp; Mems I2S <br /> <br />
 Storage: <br />&ensp;&ensp; SD Card (Up to 32GB) <br /> <br />
