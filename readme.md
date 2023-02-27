@@ -1,7 +1,7 @@
 
 USB Camera with CMOS camera and I2S audio recording capabilities. 
 
-Camera: OV5640
+Camera: OV5640 \n
 Audio: Mems I2S
 Storage: SD Card (Up to 32GB)
 Interface: USB High Speed (480 Mhz) Mass Storage Device class
