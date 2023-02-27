@@ -1,0 +1,31 @@
+dds/supportfunctions.o: \
+  ..\Middlewares\Third_Party\ARM_CMSIS\CMSIS\DSP\Source\SupportFunctions\SupportFunctions.c \
+  ..\Middlewares\Third_Party\ARM_CMSIS\CMSIS\DSP\Source\SupportFunctions\arm_copy_f32.c \
+  ..\Middlewares\Third_Party\ARM_CMSIS\CMSIS\DSP\Include\arm_math.h \
+  ..\Drivers\CMSIS\Include\cmsis_compiler.h \
+  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdint.h \
+  ..\Drivers\CMSIS\Include\cmsis_armclang.h \
+  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\arm_compat.h \
+  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\arm_acle.h \
+  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\string.h \
+  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\math.h \
+  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\float.h \
+  ..\Middlewares\Third_Party\ARM_CMSIS\CMSIS\DSP\Source\SupportFunctions\arm_copy_q15.c \
+  ..\Middlewares\Third_Party\ARM_CMSIS\CMSIS\DSP\Source\SupportFunctions\arm_copy_q31.c \
+  ..\Middlewares\Third_Party\ARM_CMSIS\CMSIS\DSP\Source\SupportFunctions\arm_copy_q7.c \
+  ..\Middlewares\Third_Party\ARM_CMSIS\CMSIS\DSP\Source\SupportFunctions\arm_fill_f32.c \
+  ..\Middlewares\Third_Party\ARM_CMSIS\CMSIS\DSP\Source\SupportFunctions\arm_fill_q15.c \
+  ..\Middlewares\Third_Party\ARM_CMSIS\CMSIS\DSP\Source\SupportFunctions\arm_fill_q31.c \
+  ..\Middlewares\Third_Party\ARM_CMSIS\CMSIS\DSP\Source\SupportFunctions\arm_fill_q7.c \
+  ..\Middlewares\Third_Party\ARM_CMSIS\CMSIS\DSP\Source\SupportFunctions\arm_float_to_q15.c \
+  ..\Middlewares\Third_Party\ARM_CMSIS\CMSIS\DSP\Source\SupportFunctions\arm_float_to_q31.c \
+  ..\Middlewares\Third_Party\ARM_CMSIS\CMSIS\DSP\Source\SupportFunctions\arm_float_to_q7.c \
+  ..\Middlewares\Third_Party\ARM_CMSIS\CMSIS\DSP\Source\SupportFunctions\arm_q15_to_float.c \
+  ..\Middlewares\Third_Party\ARM_CMSIS\CMSIS\DSP\Source\SupportFunctions\arm_q15_to_q31.c \
+  ..\Middlewares\Third_Party\ARM_CMSIS\CMSIS\DSP\Source\SupportFunctions\arm_q15_to_q7.c \
+  ..\Middlewares\Third_Party\ARM_CMSIS\CMSIS\DSP\Source\SupportFunctions\arm_q31_to_float.c \
+  ..\Middlewares\Third_Party\ARM_CMSIS\CMSIS\DSP\Source\SupportFunctions\arm_q31_to_q15.c \
+  ..\Middlewares\Third_Party\ARM_CMSIS\CMSIS\DSP\Source\SupportFunctions\arm_q31_to_q7.c \
+  ..\Middlewares\Third_Party\ARM_CMSIS\CMSIS\DSP\Source\SupportFunctions\arm_q7_to_float.c \
+  ..\Middlewares\Third_Party\ARM_CMSIS\CMSIS\DSP\Source\SupportFunctions\arm_q7_to_q15.c \
+  ..\Middlewares\Third_Party\ARM_CMSIS\CMSIS\DSP\Source\SupportFunctions\arm_q7_to_q31.c
