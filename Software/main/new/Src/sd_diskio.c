@@ -33,7 +33,7 @@
 /* Private define ------------------------------------------------------------*/
 /* use the default SD timout as defined in the platform BSP driver*/
 #if defined(SDMMC_DATATIMEOUT)
-#define SD_TIMEOUT 1000//SDMMC_DATATIMEOUT
+#define SD_TIMEOUT SDMMC_DATATIMEOUT
 #elif defined(SD_DATATIMEOUT)
 #define SD_TIMEOUT SD_DATATIMEOUT
 #else

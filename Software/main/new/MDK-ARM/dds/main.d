@@ -23,6 +23,7 @@ dds/main.o: ..\Src\main.c ..\Inc\main.h \
   ..\Drivers\STM32F7xx_HAL_Driver\Inc\stm32f7xx_hal_dma.h \
   ..\Drivers\STM32F7xx_HAL_Driver\Inc\stm32f7xx_hal_dma_ex.h \
   ..\Drivers\STM32F7xx_HAL_Driver\Inc\stm32f7xx_hal_cortex.h \
+  ..\Drivers\STM32F7xx_HAL_Driver\Inc\stm32f7xx_hal_dcmi.h \
   ..\Drivers\STM32F7xx_HAL_Driver\Inc\stm32f7xx_hal_flash.h \
   ..\Drivers\STM32F7xx_HAL_Driver\Inc\stm32f7xx_hal_flash_ex.h \
   ..\Drivers\STM32F7xx_HAL_Driver\Inc\stm32f7xx_hal_i2c.h \
@@ -30,8 +31,6 @@ dds/main.o: ..\Src\main.c ..\Inc\main.h \
   ..\Drivers\STM32F7xx_HAL_Driver\Inc\stm32f7xx_hal_i2s.h \
   ..\Drivers\STM32F7xx_HAL_Driver\Inc\stm32f7xx_hal_pwr.h \
   ..\Drivers\STM32F7xx_HAL_Driver\Inc\stm32f7xx_hal_pwr_ex.h \
-  ..\Drivers\STM32F7xx_HAL_Driver\Inc\stm32f7xx_hal_rtc.h \
-  ..\Drivers\STM32F7xx_HAL_Driver\Inc\stm32f7xx_hal_rtc_ex.h \
   ..\Drivers\STM32F7xx_HAL_Driver\Inc\stm32f7xx_hal_sd.h \
   ..\Drivers\STM32F7xx_HAL_Driver\Inc\stm32f7xx_ll_sdmmc.h \
   ..\Inc\fatfs.h ..\Middlewares\Third_Party\FatFs\src\ff.h \
@@ -41,10 +40,6 @@ dds/main.o: ..\Src\main.c ..\Inc\main.h \
   ..\Middlewares\Third_Party\FatFs\src\ff_gen_drv.h \
   ..\Middlewares\Third_Party\FatFs\src\diskio.h \
   ..\Middlewares\Third_Party\FatFs\src\ff.h ..\Inc\sd_diskio.h \
-  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\string.h \
+  ..\MY_BSP\ov5640.h C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\string.h \
   C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdio.h \
-  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdbool.h ..\MY_BSP\ov5640.h \
-  ..\Middlewares\Third_Party\ARM_CMSIS\CMSIS\DSP\Include\arm_math.h \
-  ..\Drivers\CMSIS\Include\cmsis_compiler.h \
-  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\math.h \
-  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\float.h ..\MY_BSP\wav_file.h
+  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdbool.h

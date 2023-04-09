@@ -24,32 +24,22 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "ov5640.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-
-#include "ov5640.h"
-#include "arm_math.h"
-
-#pragma pack(1)
-#include "wav_file.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
 #define I2S_SAMPLE_RATE_HZ 		(44100)
-#define I2S_SAMPLE_PER_INT 		(I2S_SAMPLE_RATE_HZ / 8)
+#define I2S_SAMPLE_PER_INT 		(I2S_SAMPLE_RATE_HZ / 16)
 #define I2S_BUFSIZE_SAMPLES 	(I2S_SAMPLE_PER_INT * 2)		// sampled in stereo, but only single channel used
 #define I2S_BUFSIZE_HALFWORD	(I2S_BUFSIZE_SAMPLES * 2)		
 #define I2S_BUFSIZE_WORD			(I2S_BUFSIZE_HALFWORD /2)	
-#define I2S_QUEUE_LEN  				(6)
-
-#define AMP_FACTOR						(3)
-
-
-//#define ENABLE_RTC
+#define I2S_QUEUE_LEN  				(3)
 
 /* USER CODE END PTD */
 
@@ -64,10 +54,11 @@
 
 /* Private variables ---------------------------------------------------------*/
 
+DCMI_HandleTypeDef hdcmi;
+DMA_HandleTypeDef hdma_dcmi;
+
 I2S_HandleTypeDef hi2s1;
 DMA_HandleTypeDef hdma_spi1_rx;
-
-RTC_HandleTypeDef hrtc;
 
 SD_HandleTypeDef hsd1;
 
@@ -75,36 +66,35 @@ SD_HandleTypeDef hsd1;
 uint8_t  i2s_queue_head = 0;
 uint8_t  i2s_queue_tail = 0;
 uint16_t audio_sample_buf[I2S_QUEUE_LEN][I2S_BUFSIZE_HALFWORD];
-int16_t audio_fwrite_buf[I2S_SAMPLE_PER_INT];
+uint16_t audio_fwrite_buf[I2S_SAMPLE_PER_INT];
 
-volatile float32_t iir_in[I2S_SAMPLE_PER_INT];
-volatile float32_t iir_out[I2S_SAMPLE_PER_INT];
-
-
+volatile bool cmd_start = false;
 volatile bool run_state = false;
 volatile bool i2s_file_opened = false;
 
-volatile bool dcmi_triggered = false;
 volatile bool dcmi_data_valid = false;
 
 volatile FRESULT result_audio_write 	= FR_DENIED;
 volatile FRESULT result_audio_close		= FR_DENIED;
 volatile FRESULT result_audio_open 		= FR_DENIED;
 
+volatile FRESULT result_video_write  	= FR_DENIED;
+volatile FRESULT result_video_close  	= FR_DENIED;
+volatile FRESULT result_video_open   	= FR_DENIED;
+
 void indicate_err();
 void indicate_success();
 void indicate_stop();
 void indicate_ready();
+void init_camera();
 
 void start_recording();
 void stop_recording();
 
 void i2s_to_fs();
+void dcmi_to_fs();
 
 void file_err_handler(void);
-
-void test_setrtc();
-void create_stream_dir();
 
 volatile bool init_done = false;
 /* USER CODE END PV */
@@ -114,8 +104,8 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_I2S1_Init(void);
+static void MX_DCMI_Init(void);
 static void MX_SDMMC1_SD_Init(void);
-static void MX_RTC_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -127,55 +117,12 @@ static void MX_RTC_Init(void);
 /* Number of i2s interrupts */
 volatile int i2s_int_cnt = 0;
 volatile int i2s_fs_cnt = 0;
-volatile int i2s_queue_ovf_cnt = 0;
+volatile int dcmi_fs_cnt = 0;
 volatile int fs_fail_cnt = 0;
 volatile int exti3_int_cnt = 0;
 
-
-WAVHeader wav_header;
-WAVData wav_data;
-char audio_filename[50];
+char audio_filename[30];
 UINT bw;
-
-float32_t iir_coeffs[5] = {
-	0.8118496248713318f,
-	1.6236992497426637f,
-	0.8118496248713318f,
-	-1.588572206276975f,
-	-0.6588262932083526f
-};
-
-const float32_t a0 = 0.8118496248713318f;
-const float32_t a1 = 1.6236992497426637f;
-const float32_t a2 = 0.8118496248713318f;
-const float32_t b1 = 1.588572206276975f;
-const float32_t b2 = 0.6588262932083526f;
-
-
-float32_t in_z1, in_z2, out_z1, out_z2;
-
-float32_t iir_states[4];
-
-arm_biquad_casd_df1_inst_f32 biquad_config;
-
-
-
-int16_t Calc_IIR (int16_t inSample) {
-	float inSampleF = (float)inSample;
-	float outSampleF =
-			a0 * inSampleF
-			+ a1 * in_z1
-			+ a2 * in_z2
-			- b1 * out_z1
-			- b2 * out_z2;
-	in_z2 = in_z1;
-	in_z1 = inSampleF;
-	out_z2 = out_z1;
-	out_z1 = outSampleF;
-
-	return (int16_t) outSampleF;
-}
-
 
 
 /* USER CODE END 0 */
@@ -189,12 +136,6 @@ int main(void)
   /* USER CODE BEGIN 1 */
 	
   /* USER CODE END 1 */
-
-  /* Enable I-Cache---------------------------------------------------------*/
-  SCB_EnableICache();
-
-  /* Enable D-Cache---------------------------------------------------------*/
-  SCB_EnableDCache();
 
   /* MCU Configuration--------------------------------------------------------*/
 
@@ -215,28 +156,20 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_I2S1_Init();
+  MX_DCMI_Init();
   MX_SDMMC1_SD_Init();
   MX_FATFS_Init();
-	
-	#ifdef ENABLE_RTC
-		MX_RTC_Init();
-	#endif
   /* USER CODE BEGIN 2 */
-	
-	
-	//HAL_RTC_GetTime(&hrtc, &rtc_time, FORMAT_BIN);
-	//HAL_RTC_GetDate(&hrtc, &rtc_date, FORMAT_BIN);
 	
 	if (HAL_I2S_DeInit(&hi2s1) != HAL_OK)
   {
     Error_Handler();
   }
 	
-	
-	//test_setrtc();
 	HAL_Delay(100);
 	
 	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_7, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_6, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_5, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_4, GPIO_PIN_RESET);
 	
@@ -252,6 +185,7 @@ int main(void)
 	volatile HAL_StatusTypeDef result2 = HAL_SD_InitCard(&hsd1);
 	result_mount = f_mount(&SDFatFS, SDPath, 1);
 	
+	
 	while (result_mount != FR_OK) {
 			HAL_SD_DeInit(&hsd1);
 			HAL_SD_Init(&hsd1);
@@ -260,10 +194,16 @@ int main(void)
 			result_mount = f_mount(&SDFatFS, SDPath, 1);
 	};
 	
-	//create_stream_dir();
-	//f_mkdir("image");
-	//volatile FRESULT fresult = f_mkdir("audio");
+	f_mkdir("image");
+	f_mkdir("audio");
 	HAL_Delay(50);
+	
+	
+	init_camera();
+	HAL_Delay(50);
+	
+	
+	
 	
 	
 	for (int cnt=0; cnt < 200; ) {  
@@ -293,27 +233,26 @@ int main(void)
 		if (!run_state) {
 			if (i2s_file_opened) {
 				i2s_file_opened = false;
-				//result_audio_close = FR_DENIED;
-				//while (result_audio_close != FR_OK) {
-				//	result_audio_close = f_close(&SDFile);
-				//}
-				result_mount = FR_DENIED;
-				
-				f_close(&SDFile);
-				while (result_mount != FR_OK) {
-					HAL_SD_DeInit(&hsd1);
-					HAL_SD_Init(&hsd1);
-					HAL_SD_InitCard(&hsd1);
-					result_mount = f_mount(&SDFatFS, SDPath, 1);
-				};
+				result_audio_close = FR_DENIED;
+				while (result_audio_close != FR_OK) {
+					result_audio_close = f_close(&SDFile);
+				}
 			}
 			
 			i2s_queue_head = 0;
 			i2s_queue_tail = 0;
-			//continue;
-		} else if (i2s_queue_head != i2s_queue_tail) {
+			continue;
+		}
+		
+		if (i2s_queue_head != i2s_queue_tail) {
 			i2s_to_fs();
 		}
+		if (dcmi_data_valid) {
+			dcmi_to_fs();
+			dcmi_data_valid = false;
+			dcmi_fs_cnt++;
+		}
+		
   }
   /* USER CODE END 3 */
 }
@@ -331,18 +270,17 @@ void SystemClock_Config(void)
   /** Configure the main internal regulator output voltage 
   */
   __HAL_RCC_PWR_CLK_ENABLE();
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE3);
+  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE2);
   /** Initializes the CPU, AHB and APB busses clocks 
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_LSI;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
   RCC_OscInitStruct.PLL.PLLM = 8;
   RCC_OscInitStruct.PLL.PLLN = 168;
-  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = 14;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
@@ -354,21 +292,20 @@ void SystemClock_Config(void)
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
   {
     Error_Handler();
   }
-  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_RTC|RCC_PERIPHCLK_SDMMC1
-                              |RCC_PERIPHCLK_I2S|RCC_PERIPHCLK_CLK48;
+  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SDMMC1|RCC_PERIPHCLK_I2S
+                              |RCC_PERIPHCLK_CLK48;
   PeriphClkInitStruct.PLLI2S.PLLI2SN = 50;
   PeriphClkInitStruct.PLLI2S.PLLI2SP = RCC_PLLP_DIV2;
   PeriphClkInitStruct.PLLI2S.PLLI2SR = 4;
   PeriphClkInitStruct.PLLI2S.PLLI2SQ = 2;
   PeriphClkInitStruct.PLLI2SDivQ = 1;
-  PeriphClkInitStruct.RTCClockSelection = RCC_RTCCLKSOURCE_LSI;
   PeriphClkInitStruct.I2sClockSelection = RCC_I2SCLKSOURCE_PLLI2S;
   PeriphClkInitStruct.Clk48ClockSelection = RCC_CLK48SOURCE_PLL;
   PeriphClkInitStruct.Sdmmc1ClockSelection = RCC_SDMMC1CLKSOURCE_CLK48;
@@ -377,6 +314,43 @@ void SystemClock_Config(void)
     Error_Handler();
   }
   HAL_RCC_MCOConfig(RCC_MCO1, RCC_MCO1SOURCE_HSI, RCC_MCODIV_1);
+}
+
+/**
+  * @brief DCMI Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_DCMI_Init(void)
+{
+
+  /* USER CODE BEGIN DCMI_Init 0 */
+
+  /* USER CODE END DCMI_Init 0 */
+
+  /* USER CODE BEGIN DCMI_Init 1 */
+
+  /* USER CODE END DCMI_Init 1 */
+  hdcmi.Instance = DCMI;
+  hdcmi.Init.SynchroMode = DCMI_SYNCHRO_HARDWARE;
+  hdcmi.Init.PCKPolarity = DCMI_PCKPOLARITY_RISING;
+  hdcmi.Init.VSPolarity = DCMI_VSPOLARITY_LOW;
+  hdcmi.Init.HSPolarity = DCMI_HSPOLARITY_LOW;
+  hdcmi.Init.CaptureRate = DCMI_CR_ALL_FRAME;
+  hdcmi.Init.ExtendedDataMode = DCMI_EXTEND_DATA_8B;
+  hdcmi.Init.JPEGMode = DCMI_JPEG_ENABLE;
+  hdcmi.Init.ByteSelectMode = DCMI_BSM_ALL;
+  hdcmi.Init.ByteSelectStart = DCMI_OEBS_ODD;
+  hdcmi.Init.LineSelectMode = DCMI_LSM_ALL;
+  hdcmi.Init.LineSelectStart = DCMI_OELS_ODD;
+  if (HAL_DCMI_Init(&hdcmi) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN DCMI_Init 2 */
+
+  /* USER CODE END DCMI_Init 2 */
+
 }
 
 /**
@@ -409,68 +383,6 @@ static void MX_I2S1_Init(void)
   /* USER CODE BEGIN I2S1_Init 2 */
 
   /* USER CODE END I2S1_Init 2 */
-
-}
-
-/**
-  * @brief RTC Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_RTC_Init(void)
-{
-
-  /* USER CODE BEGIN RTC_Init 0 */
-
-  /* USER CODE END RTC_Init 0 */
-
-  RTC_TimeTypeDef sTime = {0};
-  RTC_DateTypeDef sDate = {0};
-
-  /* USER CODE BEGIN RTC_Init 1 */
-
-  /* USER CODE END RTC_Init 1 */
-  /** Initialize RTC Only 
-  */
-  hrtc.Instance = RTC;
-  hrtc.Init.HourFormat = RTC_HOURFORMAT_24;
-  hrtc.Init.AsynchPrediv = 127;
-  hrtc.Init.SynchPrediv = 255;
-  hrtc.Init.OutPut = RTC_OUTPUT_DISABLE;
-  hrtc.Init.OutPutPolarity = RTC_OUTPUT_POLARITY_HIGH;
-  hrtc.Init.OutPutType = RTC_OUTPUT_TYPE_OPENDRAIN;
-  if (HAL_RTC_Init(&hrtc) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /* USER CODE BEGIN Check_RTC_BKUP */
-    
-  /* USER CODE END Check_RTC_BKUP */
-
-  /** Initialize RTC and set the Time and Date 
-  */
-  sTime.Hours = 0x0;
-  sTime.Minutes = 0x0;
-  sTime.Seconds = 0x0;
-  sTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
-  sTime.StoreOperation = RTC_STOREOPERATION_RESET;
-  if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BCD) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sDate.WeekDay = RTC_WEEKDAY_MONDAY;
-  sDate.Month = RTC_MONTH_JANUARY;
-  sDate.Date = 0x1;
-  sDate.Year = 0x0;
-
-  if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BCD) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN RTC_Init 2 */
-
-  /* USER CODE END RTC_Init 2 */
 
 }
 
@@ -515,6 +427,9 @@ static void MX_DMA_Init(void)
   /* DMA2_Stream0_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
+  /* DMA2_Stream1_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream1_IRQn);
 
 }
 
@@ -544,13 +459,13 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOD, GPIO_PIN_0|GPIO_PIN_1, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_7, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : IMG_CAPTURE_BTN_Pin */
-  GPIO_InitStruct.Pin = IMG_CAPTURE_BTN_Pin;
+  /*Configure GPIO pin : INTR_CAPTURE_Pin */
+  GPIO_InitStruct.Pin = INTR_CAPTURE_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(IMG_CAPTURE_BTN_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(INTR_CAPTURE_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PA2 */
   GPIO_InitStruct.Pin = GPIO_PIN_2;
@@ -593,8 +508,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PD4 PD5 PD7 */
-  GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_7;
+  /*Configure GPIO pins : PD4 PD5 PD6 PD7 */
+  GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -613,69 +528,38 @@ static void MX_GPIO_Init(void)
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {	
-	GPIO_TypeDef *port;
-	
-	switch (GPIO_Pin) {
-		case GPIO_PIN_2:
-			port = GPIOE;
-			break;
-		
-		case GPIO_PIN_3:
-			port = GPIOD;
-			break;
-	}
-	
+	exti3_int_cnt++;
 	
 	if (!init_done)
 		return;	
 	
 	HAL_NVIC_DisableIRQ(EXTI2_IRQn);
 	HAL_NVIC_DisableIRQ(EXTI3_IRQn);
-	__HAL_GPIO_EXTI_CLEAR_IT(GPIO_Pin);
 	
-	static int debounce_threshhold = 100;
+	indicate_stop();
 	
-	/* Button Debouncing - wait for release */
-	for (int cnt=0;;) {  
-		HAL_Delay(5);
-		
-		if (HAL_GPIO_ReadPin(port, GPIO_Pin) == GPIO_PIN_RESET){
-			cnt++;
+	static int debounce_threshhold = 20;
+	for (int cnt=0; cnt < debounce_threshhold; ) {  
+		HAL_Delay(10);
+		if (HAL_GPIO_ReadPin(GPIOD, GPIO_Pin) == GPIO_PIN_RESET){
+			cnt = 0;
 		} else {
-			cnt--;
-		}
-		
-		if (abs(cnt) > debounce_threshhold){
-			if (cnt < 0) {
-				HAL_NVIC_EnableIRQ(EXTI2_IRQn);
-				HAL_NVIC_EnableIRQ(EXTI3_IRQn);
-				HAL_NVIC_ClearPendingIRQ(EXTI2_IRQn);
-				HAL_NVIC_ClearPendingIRQ(EXTI3_IRQn);
-				__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_3);
-				return;
-			}
-			else
-				break;
+			cnt++;
 		}
 	}
+	
 	
 	
 	switch(GPIO_Pin) 
 	{
 		case GPIO_PIN_2:
+			HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_6);
 			break;
 			
 		case GPIO_PIN_3:
-			exti3_int_cnt++;
-			indicate_stop();
-		
-			/* Prepare Directories */
-			
+			indicate_success();
 		
 			if (!run_state){
-				create_stream_dir();
-				f_mkdir("image");
-				f_mkdir("audio");
 				start_recording();
 			} 
 			else {
@@ -687,14 +571,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 			break;
 	}
 	
-	/* Button Debouncing - wait for release */
-	for (int cnt=0; cnt < debounce_threshhold; ) {
-		HAL_Delay(5);
-		if ((HAL_GPIO_ReadPin(GPIOD, GPIO_Pin) == GPIO_PIN_SET)) 
-			cnt++;
-		else
-			cnt = 0;
-	}
 	
 	HAL_NVIC_EnableIRQ(EXTI2_IRQn);
 	HAL_NVIC_EnableIRQ(EXTI3_IRQn);
@@ -724,7 +600,6 @@ void HAL_I2S_RxCpltCallback(I2S_HandleTypeDef *hi2s)
 	
 	if (i2s_queue_full) {
 		HAL_I2S_Receive_DMA(&hi2s1, audio_sample_buf[i2s_queue_tail], I2S_BUFSIZE_WORD);
-		i2s_queue_ovf_cnt++;
 		return;
 	}
 	
@@ -787,16 +662,22 @@ void indicate_stop() {
 void stop_recording() {
 	
 	run_state = false;
-
+	
+	/* Stop DCMI */
+	HAL_DCMI_Stop(&hdcmi);
+	//HAL_GPIO_WritePin(GPIOD, GPIO_PIN_4, GPIO_PIN_SET);
+	//HAL_GPIO_WritePin(GPIOD, GPIO_PIN_7, GPIO_PIN_RESET);
+	
 	/* Stop I2S */
-	//if (HAL_I2S_DeInit(&hi2s1) != HAL_OK)
-	//{
-	//	Error_Handler();
-	//}
-	HAL_I2S_DMAStop(&hi2s1);
+	if (HAL_I2S_DeInit(&hi2s1) != HAL_OK)
+	{
+		Error_Handler();
+	}
 	HAL_NVIC_DisableIRQ(SPI1_IRQn);
 	HAL_NVIC_ClearPendingIRQ(SPI1_IRQn);
 	HAL_Delay(500);
+	
+	cmd_start = false;
 	
 	/* Turn off Indicator LED */
 	indicate_stop();
@@ -810,19 +691,12 @@ void start_recording() {
 	
 	/* Open FatFS filestreams */
 	char img_idx_str[20]="";
-	sprintf(img_idx_str, "%d", 2);
-
-	
+	sprintf(img_idx_str, "%d", 2);  
 	strcpy(audio_filename, "");
-	f_getcwd(audio_filename, 20);
-	strcat(audio_filename, "/audio/audio");
-	//strcat(audio_filename, img_idx_str);
-	strcat(audio_filename, ".wav");		
-	
-	init_default(&wav_header);
-	
-	
-	result_audio_open = create_wav_fatfs(&SDFile, audio_filename, &wav_header);  
+	strcat(audio_filename, "/audio");
+	strcat(audio_filename, img_idx_str);
+	strcat(audio_filename, ".pcm");		
+	result_audio_open = f_open(&SDFile, audio_filename, FA_WRITE | FA_OPEN_APPEND);
 	
 	if (result_audio_open != FR_OK) {
 		indicate_err();
@@ -830,8 +704,9 @@ void start_recording() {
 	}
 	i2s_file_opened = true;
 	
-	/* Initialize Audio Filter */
-	arm_biquad_cascade_df1_init_f32(&biquad_config, 1, iir_coeffs, iir_states);
+	
+	/* Start Video */
+	jpeg_test(QVGA_320_240);
 	
 	/* Start I2S audio */
 	if (HAL_I2S_Init(&hi2s1) != HAL_OK)
@@ -839,13 +714,30 @@ void start_recording() {
 		Error_Handler();
 	}
 	HAL_NVIC_EnableIRQ(SPI1_IRQn);
-	HAL_Delay(500);
-	
 	HAL_I2S_Receive_DMA(&hi2s1, audio_sample_buf[i2s_queue_tail], I2S_BUFSIZE_WORD);
 	
 	/* Turn on Indicator LED */
 	run_state = true;
+	cmd_start = true;
 	indicate_ready();
+}
+
+
+void init_camera() {
+	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_5, GPIO_PIN_SET);
+	while(OV5640_Init())
+	{
+			HAL_Delay(300);
+	}    
+	
+	OV5640_JPEG_Mode();	
+	OV5640_Focus_Init(); 	
+	OV5640_Light_Mode(0);	   			//set auto
+	OV5640_Color_Saturation(3); 	//default
+	OV5640_Brightness(4);					//default
+	OV5640_Contrast(3);     			//default
+	OV5640_Sharpness(33);					//set auto
+	OV5640_Auto_Focus();
 }
 
 
@@ -853,53 +745,39 @@ void i2s_to_fs() {
 	volatile int start_idx = 0;
 	volatile int len = 0;
 	UINT bw;
+	volatile uint16_t first_val;
 	volatile uint16_t val;
 	
 	if (i2s_queue_head == i2s_queue_tail)
 		return;
-	
 	
 	/* Search for first half-word data of i2s audio buffer */
 	for (start_idx = 0; start_idx < 4; start_idx++) {
 		if ((audio_sample_buf[i2s_queue_head][start_idx] & 0x1fff) != 0x0000)
 			break;
 	}
+	first_val = audio_sample_buf[i2s_queue_head][start_idx];
 	
 	/* Current I2S setting: 18 bits sample from 32 bit data frame. 
 	   Extract most significant 16 bit only. */
-	for (len = 0; (len*4 + start_idx) < I2S_BUFSIZE_HALFWORD; len++) { 
+	for (len = 0; (len*4 + start_idx) < I2S_SAMPLE_PER_INT; len++) { 
 		int idx_buf = len;
 		int idx_sample = len*4 + start_idx;
-		int16_t wval =   ((audio_sample_buf[i2s_queue_head][idx_sample] << 1) 
+		uint16_t wval =   ((audio_sample_buf[i2s_queue_head][idx_sample] << 1) 
 											| (audio_sample_buf[i2s_queue_head][idx_sample+1] >> 15));
-		
-		//audio_fwrite_buf[len] = Calc_IIR(wval)*3;//wval;
-		iir_in[len] = (float32_t) wval * AMP_FACTOR;
+		audio_fwrite_buf[len] = wval;
+		val = audio_sample_buf[i2s_queue_head][(len*4+start_idx)];
 	}	
 	
-	arm_biquad_cascade_df1_f32(&biquad_config, iir_in, iir_out, len);
-	
-	
-	for (int i = 0; i < len; i++) {
-		audio_fwrite_buf[i] = (int16_t) iir_out[i];
-	}
-	result_audio_write = write_pcm_data(&SDFile, audio_fwrite_buf, len);
-	
+	result_audio_write = f_write(&SDFile, (void *) audio_fwrite_buf, len, &bw);	
 	if (result_audio_write != FR_OK) {
-		static int reopen_cnt = 0;
-		reopen_cnt++;
-		
-		FRESULT result_reopen = FR_DENIED;
-		while (result_reopen != FR_OK) {
-			f_close(&SDFile);
-			result_reopen = f_open(&SDFile, audio_filename, FA_WRITE | FA_OPEN_APPEND | FA_READ);
-		}
+		f_close(&SDFile);
+		result_audio_open = f_open(&SDFile, audio_filename, FA_WRITE | FA_OPEN_APPEND);
 	}
 	
-	if ((!(i2s_fs_cnt%100)) && (i2s_fs_cnt > 0)) {
-		f_sync(&SDFile);
-		//f_close(&SDFile);
-		//result_audio_open = f_open(&SDFile, audio_filename, FA_WRITE | FA_OPEN_APPEND | FA_READ);
+	if (!(i2s_fs_cnt%100)) {
+		f_close(&SDFile);
+		result_audio_open = f_open(&SDFile, audio_filename, FA_WRITE | FA_OPEN_APPEND);
 	}
 	
 	i2s_queue_head = getNextI2sQueueHead();
@@ -908,6 +786,71 @@ void i2s_to_fs() {
 }
 
 
+void dcmi_to_fs() {
+		volatile uint8_t *p;
+		volatile uint32_t i=0,jpgstart=0,jpglen=0; 
+		volatile uint8_t  head=0;
+	  extern uint32_t jpeg_data_buf[30*1024];
+		
+		p=(uint8_t*)jpeg_data_buf;
+		
+		for(i=0;i<jpeg_buf_size * 4; i++) //search for 0XFF 0XD8 and 0XFF 0XD9, get size of JPG 
+		{
+				if((p[i]==0XFF)&&(p[i+1]==0XD8))
+				{
+								jpgstart=i;
+								head=1;	// Already found  FF D8
+				}
+				if((p[i]==0XFF)&&(p[i+1]==0XD9)&&head)  //search for FF D9
+				{
+								jpglen=i-jpgstart+2;
+								break;
+				}
+		}
+		if(jpglen)	 
+		{	
+				p+=jpgstart;	// move to FF D8
+	
+				static int img_idx = 0;
+				char img_fname[30]="";
+				char img_idx_str[20]="";
+				sprintf(img_idx_str, "%d", img_idx);  
+				UINT bw;
+					
+				/* SD Test Codes */
+				strcat(img_fname, "/image/");
+				strcat(img_fname, img_idx_str);
+				strcat(img_fname, ".jpeg");
+				result_video_open = f_open(&VideoFile, img_fname, FA_WRITE | FA_CREATE_ALWAYS);
+				
+				if (result_video_open != FR_OK) {
+						HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_CONTINUOUS, (uint32_t)jpeg_data_buf, jpeg_buf_size/4);  
+						return;
+				}
+			
+			
+				result_video_write = f_write(&VideoFile, (void *)p, jpglen, &bw);
+				result_video_close = FR_DENIED;
+			
+				if (result_video_write != FR_OK) {
+					f_close(&VideoFile);
+					result_audio_open = f_open(&VideoFile, audio_filename, FA_WRITE | FA_OPEN_APPEND);
+				}
+			
+				for (int i = 0; i < 100; i++) {
+					result_video_close = f_close(&VideoFile);
+					if (result_video_close == FR_OK)
+						break;
+					if (i == 100-1) 
+						file_err_handler();
+				}
+				
+				img_idx++;
+		} 
+
+		HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_CONTINUOUS, (uint32_t)jpeg_data_buf, jpeg_buf_size/4);  
+		__HAL_DCMI_ENABLE_IT(&hdcmi, DCMI_IT_FRAME); 
+}
 
 
 void file_err_handler(void) {
@@ -916,8 +859,9 @@ void file_err_handler(void) {
 	indicate_err();
 	
 	FRESULT audio_closed = f_close(&SDFile);
+	FRESULT video_closed = f_close(&VideoFile);
 	
-	if (audio_closed != FR_OK) {
+	if ((audio_closed != FR_OK) || (video_closed != FR_OK)) {
 		HAL_SD_InitCard(&hsd1);
 		f_mount(&SDFatFS, SDPath, 1);
 	}
@@ -926,77 +870,6 @@ void file_err_handler(void) {
 	
 	if (audio_opened != FR_OK)
 		file_err_handler();
-}
-
-
-#ifdef ENABLE_RTC
-void test_setrtc() {
-	RTC_TimeTypeDef rtc_time;
-	RTC_DateTypeDef rtc_date;
-	RTC_AlarmTypeDef sAlarm;
-	
-	rtc_date.Year = 22;
-	rtc_date.Month = 9;
-	rtc_date.Date = 18;
-	
-	rtc_time.Hours = 13;
-	rtc_time.Minutes = 04;
-	rtc_time.Seconds = 0;
-	
-	
-	HAL_RTC_SetTime(&hrtc, &rtc_time, FORMAT_BIN);
-	HAL_RTC_SetDate(&hrtc, &rtc_date, FORMAT_BIN);
-}
-#endif
-
-
-void create_stream_dir() {
-	
-	#ifdef ENABLE_RTC
-		RTC_TimeTypeDef rtc_time;
-		RTC_DateTypeDef rtc_date;
-		RTC_AlarmTypeDef sAlarm;
-		char date_str[80];
-		
-		HAL_RTC_GetTime(&hrtc, &rtc_time, FORMAT_BIN);
-		HAL_RTC_GetDate(&hrtc, &rtc_date, FORMAT_BIN);
-		
-		sprintf(date_str, "%02d%02d%02d%02d%02d%02d", rtc_date.Year, rtc_date.Month , rtc_date.Date,
-																						rtc_time.Hours, rtc_time.Minutes, rtc_time.Seconds);
-		
-		volatile FRESULT result; 
-		result = f_chdir("/");
-		result = f_mkdir(date_str);
-		result = f_chdir(date_str);
-	
-		
-	#else
-		volatile FRESULT result; 
-		
-		DIR DIR;
-		for (int i=0;;i++) {
-			char dirname[6];
-			sprintf(dirname, "%d", i);
-			
-			f_chdir("/");
-			result = f_opendir(&DIR, dirname);
-			f_closedir(&DIR);
-			if (result == FR_OK){
-				continue;
-			}
-			else if (result == FR_NO_PATH) {
-				result = f_chdir("/");
-				result = f_mkdir(dirname);
-				result = f_chdir(dirname);
-				break;
-			} 
-			else {
-				indicate_err();
-			}
-		}
-		
-		
-	#endif
 }
 
 
@@ -1011,10 +884,6 @@ void Error_Handler(void)
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
 
-	while (true) {
-		indicate_stop();
-	}
-	
   /* USER CODE END Error_Handler_Debug */
 }
 

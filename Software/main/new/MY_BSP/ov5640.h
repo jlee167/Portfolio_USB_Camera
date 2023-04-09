@@ -23,7 +23,7 @@
 #define   HD_720p          6
 #define   FULL_HD_720p     7
 
-#define   jpeg_buf_size     25*1024	
+#define   jpeg_buf_size     60*1024	
 
 
 

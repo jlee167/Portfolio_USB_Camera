@@ -428,7 +428,7 @@ void jpeg_test(uint8_t jpg_size)
 void jpeg_dcmi_frame_callback(DMA_HandleTypeDef *_hdma)
 {         
 		extern bool dcmi_data_valid;
-		
+	
 		HAL_DCMI_Stop(&hdcmi);
 		dcmi_data_valid = true;
 }

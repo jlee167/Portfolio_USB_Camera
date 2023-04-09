@@ -59,9 +59,9 @@ void Error_Handler(void);
 
 /* Private defines -----------------------------------------------------------*/
 #define USE_HAL_DCMI_REGISTER_CALLBACKS 1
-#define IMG_CAPTURE_BTN_Pin GPIO_PIN_2
-#define IMG_CAPTURE_BTN_GPIO_Port GPIOE
-#define IMG_CAPTURE_BTN_EXTI_IRQn EXTI2_IRQn
+#define INTR_CAPTURE_Pin GPIO_PIN_2
+#define INTR_CAPTURE_GPIO_Port GPIOE
+#define INTR_CAPTURE_EXTI_IRQn EXTI2_IRQn
 /* USER CODE BEGIN Private defines */
 #define OV5640_PWDN_Pin GPIO_PIN_2
 #define OV5640_PWDN_GPIO_Port GPIOA
