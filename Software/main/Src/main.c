@@ -1,23 +1,3 @@
-/* USER CODE BEGIN Header */
-/**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * <h2><center>&copy; Copyright (c) 2021 STMicroelectronics.
-  * All rights reserved.</center></h2>
-  *
-  * This software component is licensed by ST under Ultimate Liberty license
-  * SLA0044, the "License"; You may not use this file except in compliance with
-  * the License. You may obtain a copy of the License at:
-  *                             www.st.com/SLA0044
-  *
-  ******************************************************************************
-  */
-/* USER CODE END Header */
-
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "fatfs.h"
@@ -25,6 +5,15 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "ov5640.h"
+#include "dsp.h"
+#include "board.h"
+#include "led.h"
+#include "camera.h"
+#include "configs.h"
+#include "audio.h"
+#include "gpio.h"
+#include "sdio.h"
+
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,12 +23,7 @@
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
-#define I2S_SAMPLE_RATE_HZ 		(44100)
-#define I2S_SAMPLE_PER_INT 		(I2S_SAMPLE_RATE_HZ / 16)
-#define I2S_BUFSIZE_SAMPLES 	(I2S_SAMPLE_PER_INT * 2)		// sampled in stereo, but only single channel used
-#define I2S_BUFSIZE_HALFWORD	(I2S_BUFSIZE_SAMPLES * 2)		
-#define I2S_BUFSIZE_WORD			(I2S_BUFSIZE_HALFWORD /2)	
-#define I2S_QUEUE_LEN  				(3)
+
 
 /* USER CODE END PTD */
 
@@ -56,43 +40,18 @@
 
 DCMI_HandleTypeDef hdcmi;
 DMA_HandleTypeDef hdma_dcmi;
-
 I2S_HandleTypeDef hi2s1;
 DMA_HandleTypeDef hdma_spi1_rx;
-
 SD_HandleTypeDef hsd1;
 
+
 /* USER CODE BEGIN PV */
-uint8_t  i2s_queue_head = 0;
-uint8_t  i2s_queue_tail = 0;
-uint16_t audio_sample_buf[I2S_QUEUE_LEN][I2S_BUFSIZE_HALFWORD];
-uint16_t audio_fwrite_buf[I2S_SAMPLE_PER_INT];
-
-volatile bool cmd_start = false;
-volatile bool run_state = false;
-volatile bool i2s_file_opened = false;
-
-volatile bool dcmi_data_valid = false;
-
-volatile FRESULT result_audio_write 	= FR_DENIED;
-volatile FRESULT result_audio_close		= FR_DENIED;
-volatile FRESULT result_audio_open 		= FR_DENIED;
-
-volatile FRESULT result_video_write  	= FR_DENIED;
-volatile FRESULT result_video_close  	= FR_DENIED;
-volatile FRESULT result_video_open   	= FR_DENIED;
-
-void indicate_err();
-void indicate_success();
-void indicate_stop();
-void indicate_ready();
-void init_camera();
+volatile bool running = false;
+volatile int exti3_int_cnt = 0;
 
 void start_recording();
 void stop_recording();
 
-void i2s_to_fs();
-void dcmi_to_fs();
 
 void file_err_handler(void);
 
@@ -114,15 +73,6 @@ static void MX_SDMMC1_SD_Init(void);
 /* USER CODE BEGIN 0 */
 
 
-/* Number of i2s interrupts */
-volatile int i2s_int_cnt = 0;
-volatile int i2s_fs_cnt = 0;
-volatile int dcmi_fs_cnt = 0;
-volatile int fs_fail_cnt = 0;
-volatile int exti3_int_cnt = 0;
-
-char audio_filename[30];
-UINT bw;
 
 
 /* USER CODE END 0 */
@@ -168,56 +118,13 @@ int main(void)
 	
 	HAL_Delay(100);
 	
-	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_7, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_6, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_5, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_4, GPIO_PIN_RESET);
-	
-	
-  volatile FRESULT result_mount = FR_INVALID_PARAMETER;
-	int mount_fail_cnt = 0;
-	
-	
-	volatile HAL_StatusTypeDef result = HAL_SD_Init(&hsd1);
-	while (result != HAL_OK) {
-		result = HAL_SD_Init(&hsd1);
-	}
-	volatile HAL_StatusTypeDef result2 = HAL_SD_InitCard(&hsd1);
-	result_mount = f_mount(&SDFatFS, SDPath, 1);
-	
-	
-	while (result_mount != FR_OK) {
-			HAL_SD_DeInit(&hsd1);
-			HAL_SD_Init(&hsd1);
-			HAL_SD_InitCard(&hsd1);
-		
-			result_mount = f_mount(&SDFatFS, SDPath, 1);
-	};
-	
-	f_mkdir("image");
-	f_mkdir("audio");
-	HAL_Delay(50);
-	
-	
+	init_gpio();
+  init_sd_fatfs();
 	init_camera();
-	HAL_Delay(50);
+	init_lpf();
 	
 	
-	
-	
-	
-	for (int cnt=0; cnt < 200; ) {  
-		HAL_Delay(10);
-		if (HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_3) == GPIO_PIN_RESET){
-			cnt = 0;
-		} else {
-			cnt++;
-		}
-	}
-	
-	__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_3);
-	HAL_Delay(50);
-	indicate_ready();
+	led_ready();
 	init_done = true;
 	
   /* USER CODE END 2 */
@@ -230,29 +137,8 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-		if (!run_state) {
-			if (i2s_file_opened) {
-				i2s_file_opened = false;
-				result_audio_close = FR_DENIED;
-				while (result_audio_close != FR_OK) {
-					result_audio_close = f_close(&SDFile);
-				}
-			}
-			
-			i2s_queue_head = 0;
-			i2s_queue_tail = 0;
-			continue;
-		}
-		
-		if (i2s_queue_head != i2s_queue_tail) {
-			i2s_to_fs();
-		}
-		if (dcmi_data_valid) {
-			dcmi_to_fs();
-			dcmi_data_valid = false;
-			dcmi_fs_cnt++;
-		}
-		
+		app_background_audio(running);
+		app_background_camera(&hdcmi);
   }
   /* USER CODE END 3 */
 }
@@ -533,10 +419,11 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	if (!init_done)
 		return;	
 	
+	/* Begin critical section */
 	HAL_NVIC_DisableIRQ(EXTI2_IRQn);
 	HAL_NVIC_DisableIRQ(EXTI3_IRQn);
 	
-	indicate_stop();
+	led_stop();
 	
 	static int debounce_threshhold = 20;
 	for (int cnt=0; cnt < debounce_threshhold; ) {  
@@ -552,14 +439,14 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	
 	switch(GPIO_Pin) 
 	{
-		case GPIO_PIN_2:
-			HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_6);
+		case BTN_FLASHLIGHT:
+			toggle_flashlight();
 			break;
 			
-		case GPIO_PIN_3:
-			indicate_success();
+		case BTN_RECORDING:
+			led_success();
 		
-			if (!run_state){
+			if (!running){
 				start_recording();
 			} 
 			else {
@@ -571,7 +458,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 			break;
 	}
 	
-	
+	/* End critical section and resume interrupts */
 	HAL_NVIC_EnableIRQ(EXTI2_IRQn);
 	HAL_NVIC_EnableIRQ(EXTI3_IRQn);
 	HAL_NVIC_ClearPendingIRQ(EXTI2_IRQn);
@@ -580,297 +467,34 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 }
 
 
-uint8_t getNextI2sQueueTail() {
-	const uint8_t is_last_idx = (i2s_queue_tail == (I2S_QUEUE_LEN-1));
-	return is_last_idx ? 0 : i2s_queue_tail+1;
-}
-
-uint8_t getNextI2sQueueHead() {
-	const uint8_t is_last_idx = (i2s_queue_head == (I2S_QUEUE_LEN-1));
-	return is_last_idx ? 0 : i2s_queue_head+1;
-}
-
-
 void HAL_I2S_RxCpltCallback(I2S_HandleTypeDef *hi2s)
 {
-	i2s_int_cnt++;
-	
-	const bool i2s_queue_full = (i2s_queue_head == getNextI2sQueueTail());
-	const uint8_t is_last_idx = (i2s_queue_tail == (I2S_QUEUE_LEN-1));
-	
-	if (i2s_queue_full) {
-		HAL_I2S_Receive_DMA(&hi2s1, audio_sample_buf[i2s_queue_tail], I2S_BUFSIZE_WORD);
-		return;
-	}
-	
-	i2s_queue_tail = getNextI2sQueueTail();
-	
-	/* Issue I2S Read */
-	while (HAL_I2S_GetState(&hi2s1) != HAL_I2S_STATE_READY) {};
-	HAL_I2S_Receive_DMA(&hi2s1, audio_sample_buf[i2s_queue_tail], I2S_BUFSIZE_WORD);
+	app_audio_callback(hi2s);
 }
-
-
 
 
 void HAL_I2S_ErrorCallback(I2S_HandleTypeDef *hi2s) {
 }
 
 
-void indicate_err() {
-	for (int i = 0; i < 10; i++){
-		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_7, GPIO_PIN_SET);
-		HAL_Delay(100);
-		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_7, GPIO_PIN_RESET);
-		HAL_Delay(100);
-	}
-}
-
-void indicate_fault() {
-		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_7, GPIO_PIN_SET);
-}
-
-
-/********************************
-		LED Control Functions
-*********************************/
-
-void indicate_success() {
-	for (int i = 0; i < 2; i++){
-		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_7, GPIO_PIN_SET);
-		HAL_Delay(500);
-		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_7, GPIO_PIN_RESET);
-		HAL_Delay(500);
-	}
-}
-
-void indicate_ready() {
-	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_7, GPIO_PIN_SET);
-}
-
-
-void indicate_stop() {
-	for (int i = 0; i < 4; i++){
-		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_7, GPIO_PIN_SET);
-		HAL_Delay(200);
-		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_7, GPIO_PIN_RESET);
-		HAL_Delay(200);
-	}
-}
-
 
 void stop_recording() {
-	
-	run_state = false;
-	
-	/* Stop DCMI */
-	HAL_DCMI_Stop(&hdcmi);
-	//HAL_GPIO_WritePin(GPIOD, GPIO_PIN_4, GPIO_PIN_SET);
-	//HAL_GPIO_WritePin(GPIOD, GPIO_PIN_7, GPIO_PIN_RESET);
-	
-	/* Stop I2S */
-	if (HAL_I2S_DeInit(&hi2s1) != HAL_OK)
-	{
-		Error_Handler();
-	}
-	HAL_NVIC_DisableIRQ(SPI1_IRQn);
-	HAL_NVIC_ClearPendingIRQ(SPI1_IRQn);
-	HAL_Delay(500);
-	
-	cmd_start = false;
-	
-	/* Turn off Indicator LED */
-	indicate_stop();
-
+	running = false;
+	stop_camera();
+	stop_audio();
+	led_stop();
 }
+
 
 
 void start_recording() {
-	
-	indicate_success();
-	
-	/* Open FatFS filestreams */
-	char img_idx_str[20]="";
-	sprintf(img_idx_str, "%d", 2);  
-	strcpy(audio_filename, "");
-	strcat(audio_filename, "/audio");
-	strcat(audio_filename, img_idx_str);
-	strcat(audio_filename, ".pcm");		
-	result_audio_open = f_open(&SDFile, audio_filename, FA_WRITE | FA_OPEN_APPEND);
-	
-	if (result_audio_open != FR_OK) {
-		indicate_err();
-		return;
-	}
-	i2s_file_opened = true;
-	
-	
-	/* Start Video */
-	jpeg_test(QVGA_320_240);
-	
-	/* Start I2S audio */
-	if (HAL_I2S_Init(&hi2s1) != HAL_OK)
-	{
-		Error_Handler();
-	}
-	HAL_NVIC_EnableIRQ(SPI1_IRQn);
-	HAL_I2S_Receive_DMA(&hi2s1, audio_sample_buf[i2s_queue_tail], I2S_BUFSIZE_WORD);
-	
-	/* Turn on Indicator LED */
-	run_state = true;
-	cmd_start = true;
-	indicate_ready();
+	led_success();
+	start_audio();
+	start_camera();	
+	led_ready();
+	running = true;
 }
 
-
-void init_camera() {
-	HAL_GPIO_WritePin(GPIOD, GPIO_PIN_5, GPIO_PIN_SET);
-	while(OV5640_Init())
-	{
-			HAL_Delay(300);
-	}    
-	
-	OV5640_JPEG_Mode();	
-	OV5640_Focus_Init(); 	
-	OV5640_Light_Mode(0);	   			//set auto
-	OV5640_Color_Saturation(3); 	//default
-	OV5640_Brightness(4);					//default
-	OV5640_Contrast(3);     			//default
-	OV5640_Sharpness(33);					//set auto
-	OV5640_Auto_Focus();
-}
-
-
-void i2s_to_fs() {
-	volatile int start_idx = 0;
-	volatile int len = 0;
-	UINT bw;
-	volatile uint16_t first_val;
-	volatile uint16_t val;
-	
-	if (i2s_queue_head == i2s_queue_tail)
-		return;
-	
-	/* Search for first half-word data of i2s audio buffer */
-	for (start_idx = 0; start_idx < 4; start_idx++) {
-		if ((audio_sample_buf[i2s_queue_head][start_idx] & 0x1fff) != 0x0000)
-			break;
-	}
-	first_val = audio_sample_buf[i2s_queue_head][start_idx];
-	
-	/* Current I2S setting: 18 bits sample from 32 bit data frame. 
-	   Extract most significant 16 bit only. */
-	for (len = 0; (len*4 + start_idx) < I2S_SAMPLE_PER_INT; len++) { 
-		int idx_buf = len;
-		int idx_sample = len*4 + start_idx;
-		uint16_t wval =   ((audio_sample_buf[i2s_queue_head][idx_sample] << 1) 
-											| (audio_sample_buf[i2s_queue_head][idx_sample+1] >> 15));
-		audio_fwrite_buf[len] = wval;
-		val = audio_sample_buf[i2s_queue_head][(len*4+start_idx)];
-	}	
-	
-	result_audio_write = f_write(&SDFile, (void *) audio_fwrite_buf, len, &bw);	
-	if (result_audio_write != FR_OK) {
-		f_close(&SDFile);
-		result_audio_open = f_open(&SDFile, audio_filename, FA_WRITE | FA_OPEN_APPEND);
-	}
-	
-	if (!(i2s_fs_cnt%100)) {
-		f_close(&SDFile);
-		result_audio_open = f_open(&SDFile, audio_filename, FA_WRITE | FA_OPEN_APPEND);
-	}
-	
-	i2s_queue_head = getNextI2sQueueHead();
-	
-	i2s_fs_cnt++;
-}
-
-
-void dcmi_to_fs() {
-		volatile uint8_t *p;
-		volatile uint32_t i=0,jpgstart=0,jpglen=0; 
-		volatile uint8_t  head=0;
-	  extern uint32_t jpeg_data_buf[30*1024];
-		
-		p=(uint8_t*)jpeg_data_buf;
-		
-		for(i=0;i<jpeg_buf_size * 4; i++) //search for 0XFF 0XD8 and 0XFF 0XD9, get size of JPG 
-		{
-				if((p[i]==0XFF)&&(p[i+1]==0XD8))
-				{
-								jpgstart=i;
-								head=1;	// Already found  FF D8
-				}
-				if((p[i]==0XFF)&&(p[i+1]==0XD9)&&head)  //search for FF D9
-				{
-								jpglen=i-jpgstart+2;
-								break;
-				}
-		}
-		if(jpglen)	 
-		{	
-				p+=jpgstart;	// move to FF D8
-	
-				static int img_idx = 0;
-				char img_fname[30]="";
-				char img_idx_str[20]="";
-				sprintf(img_idx_str, "%d", img_idx);  
-				UINT bw;
-					
-				/* SD Test Codes */
-				strcat(img_fname, "/image/");
-				strcat(img_fname, img_idx_str);
-				strcat(img_fname, ".jpeg");
-				result_video_open = f_open(&VideoFile, img_fname, FA_WRITE | FA_CREATE_ALWAYS);
-				
-				if (result_video_open != FR_OK) {
-						HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_CONTINUOUS, (uint32_t)jpeg_data_buf, jpeg_buf_size/4);  
-						return;
-				}
-			
-			
-				result_video_write = f_write(&VideoFile, (void *)p, jpglen, &bw);
-				result_video_close = FR_DENIED;
-			
-				if (result_video_write != FR_OK) {
-					f_close(&VideoFile);
-					result_audio_open = f_open(&VideoFile, audio_filename, FA_WRITE | FA_OPEN_APPEND);
-				}
-			
-				for (int i = 0; i < 100; i++) {
-					result_video_close = f_close(&VideoFile);
-					if (result_video_close == FR_OK)
-						break;
-					if (i == 100-1) 
-						file_err_handler();
-				}
-				
-				img_idx++;
-		} 
-
-		HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_CONTINUOUS, (uint32_t)jpeg_data_buf, jpeg_buf_size/4);  
-		__HAL_DCMI_ENABLE_IT(&hdcmi, DCMI_IT_FRAME); 
-}
-
-
-void file_err_handler(void) {
-	
-	fs_fail_cnt++;
-	indicate_err();
-	
-	FRESULT audio_closed = f_close(&SDFile);
-	FRESULT video_closed = f_close(&VideoFile);
-	
-	if ((audio_closed != FR_OK) || (video_closed != FR_OK)) {
-		HAL_SD_InitCard(&hsd1);
-		f_mount(&SDFatFS, SDPath, 1);
-	}
-	
-	FRESULT audio_opened = f_open(&SDFile, audio_filename, FA_WRITE | FA_OPEN_APPEND);
-	
-	if (audio_opened != FR_OK)
-		file_err_handler();
-}
 
 
 /* USER CODE END 4 */

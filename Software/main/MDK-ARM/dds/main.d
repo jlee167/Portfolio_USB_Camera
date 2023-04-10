@@ -40,6 +40,13 @@ dds/main.o: ..\Src\main.c ..\Inc\main.h \
   ..\Middlewares\Third_Party\FatFs\src\ff_gen_drv.h \
   ..\Middlewares\Third_Party\FatFs\src\diskio.h \
   ..\Middlewares\Third_Party\FatFs\src\ff.h ..\Inc\sd_diskio.h \
-  ..\MY_BSP\ov5640.h C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\string.h \
-  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdio.h \
-  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdbool.h
+  ..\MY_BSP\ov5640.h ..\Inc\dsp.h \
+  ..\Middlewares\Third_Party\ARM_CMSIS\CMSIS\DSP\Include\arm_math.h \
+  ..\Drivers\CMSIS\Include\cmsis_compiler.h \
+  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\string.h \
+  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\math.h \
+  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\float.h ..\Inc\board.h \
+  ..\Inc\led.h ..\Inc\camera.h ..\Inc\configs.h ..\Inc\audio.h \
+  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdbool.h ..\Inc\gpio.h \
+  ..\Inc\sdio.h ..\Inc\fatfs.h \
+  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdio.h

@@ -1,4 +1,6 @@
-dds/audio.o: audio.c ..\Inc\fatfs.h \
+dds/audio.o: audio.c C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdbool.h \
+  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\string.h \
+  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdio.h ..\Inc\fatfs.h \
   ..\Middlewares\Third_Party\FatFs\src\ff.h \
   ..\Middlewares\Third_Party\FatFs\src\integer.h ..\Inc\ffconf.h \
   ..\Inc\main.h ..\Drivers\STM32F7xx_HAL_Driver\Inc\stm32f7xx_hal.h \
@@ -40,5 +42,4 @@ dds/audio.o: audio.c ..\Inc\fatfs.h \
   ..\Middlewares\Third_Party\FatFs\src\ff_gen_drv.h \
   ..\Middlewares\Third_Party\FatFs\src\diskio.h \
   ..\Middlewares\Third_Party\FatFs\src\ff.h ..\Inc\sd_diskio.h \
-  file_gen.h C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\string.h \
-  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdio.h
+  file_gen.h ..\Inc\configs.h ..\Inc\led.h

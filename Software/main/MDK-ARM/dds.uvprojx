@@ -18,7 +18,7 @@
           <Vendor>STMicroelectronics</Vendor>
           <PackID>Keil.STM32F7xx_DFP.2.14.0</PackID>
           <PackURL>http://www.keil.com/pack/</PackURL>
-          <Cpu>IRAM(0x20000000-0x2004FFFF) IROM(0x8000000-0x80FFFFF)              CLOCK(12000000) FPU3(SFPU) CPUTYPE("Cortex-M7") ELITTLE</Cpu>
+          <Cpu>IRAM(0x20000000-0x2004FFFF) IROM(0x8000000-0x80FFFFF)               CLOCK(12000000) FPU3(SFPU) CPUTYPE("Cortex-M7") ELITTLE</Cpu>
           <FlashUtilSpec></FlashUtilSpec>
           <StartupFile></StartupFile>
           <FlashDriverDll></FlashDriverDll>
@@ -339,7 +339,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32F746xx</Define>
               <Undefine></Undefine>
-              <IncludePath>../Inc;                                                                             ../Drivers/STM32F7xx_HAL_Driver/Inc;                                                                             ../Drivers/STM32F7xx_HAL_Driver/Inc/Legacy;                                                                             ../Drivers/CMSIS/Device/ST/STM32F7xx/Include;                                                                             ../Drivers/CMSIS/Include;                                                                             ..\MY_BSP;                                                                     ../Middlewares/Third_Party/FatFs/src</IncludePath>
+              <IncludePath>../Inc;                                                                              ../Drivers/STM32F7xx_HAL_Driver/Inc;                                                                              ../Drivers/STM32F7xx_HAL_Driver/Inc/Legacy;                                                                              ../Drivers/CMSIS/Device/ST/STM32F7xx/Include;                                                                              ../Drivers/CMSIS/Include;                                                                              ..\MY_BSP;                                                                      ../Middlewares/Third_Party/FatFs/src;../Middlewares/Third_Party/ARM_CMSIS/CMSIS/Core/Include/;../Middlewares/Third_Party/ARM_CMSIS/CMSIS/Core_A/Include/;../Middlewares/Third_Party/ARM_CMSIS/CMSIS/DSP/Include</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -463,6 +463,11 @@
           <GroupName>Application/User</GroupName>
           <Files>
             <File>
+              <FileName>audio.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\audio.c</FilePath>
+            </File>
+            <File>
               <FileName>main.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Src/main.c</FilePath>
@@ -497,26 +502,76 @@
               <FileType>1</FileType>
               <FilePath>../Src/stm32f7xx_hal_msp.c</FilePath>
             </File>
+            <File>
+              <FileName>camera.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\camera.c</FilePath>
+            </File>
+            <File>
+              <FileName>camera.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Inc\camera.h</FilePath>
+            </File>
+            <File>
+              <FileName>configs.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Inc\configs.h</FilePath>
+            </File>
+            <File>
+              <FileName>audio.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Inc\audio.h</FilePath>
+            </File>
+            <File>
+              <FileName>gpio.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\gpio.c</FilePath>
+            </File>
+            <File>
+              <FileName>gpio.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Inc\gpio.h</FilePath>
+            </File>
+            <File>
+              <FileName>sdio.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\sdio.c</FilePath>
+            </File>
+            <File>
+              <FileName>sdio.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Inc\sdio.h</FilePath>
+            </File>
+            <File>
+              <FileName>dsp.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\dsp.c</FilePath>
+            </File>
+            <File>
+              <FileName>led.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\led.c</FilePath>
+            </File>
+            <File>
+              <FileName>board.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Inc\board.h</FilePath>
+            </File>
+            <File>
+              <FileName>dsp.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Inc\dsp.h</FilePath>
+            </File>
+            <File>
+              <FileName>led.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Inc\led.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
           <GroupName>Drivers/STM32F7xx_HAL_Driver</GroupName>
           <Files>
-            <File>
-              <FileName>stm32f7xx_hal_cortex.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Drivers/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_cortex.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f7xx_hal_dcmi.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Drivers/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_dcmi.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f7xx_hal_dcmi_ex.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Drivers/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_dcmi_ex.c</FilePath>
-            </File>
             <File>
               <FileName>stm32f7xx_hal_rcc.c</FileName>
               <FileType>1</FileType>
@@ -563,6 +618,11 @@
               <FilePath>../Drivers/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_pwr_ex.c</FilePath>
             </File>
             <File>
+              <FileName>stm32f7xx_hal_cortex.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Drivers/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_cortex.c</FilePath>
+            </File>
+            <File>
               <FileName>stm32f7xx_hal.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Drivers/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal.c</FilePath>
@@ -581,6 +641,16 @@
               <FileName>stm32f7xx_hal_exti.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Drivers/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_exti.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f7xx_hal_dcmi.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Drivers/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_dcmi.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f7xx_hal_dcmi_ex.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Drivers/STM32F7xx_HAL_Driver/Src/stm32f7xx_hal_dcmi_ex.c</FilePath>
             </File>
             <File>
               <FileName>stm32f7xx_hal_i2s.c</FileName>
@@ -632,21 +702,6 @@
               <FileType>1</FileType>
               <FilePath>..\MY_BSP\sccb.c</FilePath>
             </File>
-            <File>
-              <FileName>audio.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\audio.c</FilePath>
-            </File>
-            <File>
-              <FileName>file_gen.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\file_gen.c</FilePath>
-            </File>
-            <File>
-              <FileName>file_gen.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\file_gen.h</FilePath>
-            </File>
           </Files>
         </Group>
         <Group>
@@ -676,6 +731,64 @@
               <FileName>ccsbcs.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Middlewares/Third_Party/FatFs/src/option/ccsbcs.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Middlewares/CMSIS</GroupName>
+        </Group>
+        <Group>
+          <GroupName>Middlewares/CMSIS/CMSIS/DSP/Source</GroupName>
+          <Files>
+            <File>
+              <FileName>BasicMathFunctions.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Middlewares/Third_Party/ARM_CMSIS/CMSIS/DSP/Source/BasicMathFunctions/BasicMathFunctions.c</FilePath>
+            </File>
+            <File>
+              <FileName>CommonTables.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Middlewares/Third_Party/ARM_CMSIS/CMSIS/DSP/Source/CommonTables/CommonTables.c</FilePath>
+            </File>
+            <File>
+              <FileName>ComplexMathFunctions.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Middlewares/Third_Party/ARM_CMSIS/CMSIS/DSP/Source/ComplexMathFunctions/ComplexMathFunctions.c</FilePath>
+            </File>
+            <File>
+              <FileName>ControllerFunctions.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Middlewares/Third_Party/ARM_CMSIS/CMSIS/DSP/Source/ControllerFunctions/ControllerFunctions.c</FilePath>
+            </File>
+            <File>
+              <FileName>FastMathFunctions.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Middlewares/Third_Party/ARM_CMSIS/CMSIS/DSP/Source/FastMathFunctions/FastMathFunctions.c</FilePath>
+            </File>
+            <File>
+              <FileName>FilteringFunctions.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Middlewares/Third_Party/ARM_CMSIS/CMSIS/DSP/Source/FilteringFunctions/FilteringFunctions.c</FilePath>
+            </File>
+            <File>
+              <FileName>MatrixFunctions.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Middlewares/Third_Party/ARM_CMSIS/CMSIS/DSP/Source/MatrixFunctions/MatrixFunctions.c</FilePath>
+            </File>
+            <File>
+              <FileName>StatisticsFunctions.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Middlewares/Third_Party/ARM_CMSIS/CMSIS/DSP/Source/StatisticsFunctions/StatisticsFunctions.c</FilePath>
+            </File>
+            <File>
+              <FileName>SupportFunctions.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Middlewares/Third_Party/ARM_CMSIS/CMSIS/DSP/Source/SupportFunctions/SupportFunctions.c</FilePath>
+            </File>
+            <File>
+              <FileName>TransformFunctions.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Middlewares/Third_Party/ARM_CMSIS/CMSIS/DSP/Source/TransformFunctions/TransformFunctions.c</FilePath>
             </File>
           </Files>
         </Group>
