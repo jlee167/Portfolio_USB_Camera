@@ -5731,10 +5731,10 @@ Image component sizes
 
        636         72          0          3      71698       8093   audio.o
        172          4          0          0          0       6659   bsp_driver_sd.o
-       478         40          0          3         12       5518   camera.o
+       478         40          0          3         12       5512   camera.o
        192         22        942          0          0       1720   ccsbcs.o
        140          4          0          0          0       2103   diskio.o
-        68          8          0         20         44       2546   dsp.o
+        68          8          0         20         44       2548   dsp.o
         28          8          0          0       1689       1886   fatfs.o
         24          4          0          0          0       1192   fatfs_platform.o
       5958         96        141          0        552      49380   ff.o
@@ -5742,7 +5742,7 @@ Image component sizes
         22          0          0          0          0     188839   filteringfunctions.o
         92          8          0          0          0       1319   gpio.o
        176          8          0          0          0       1774   led.o
-       976         64          0          0        476      13253   main.o
+       976         64          0          0        476      13251   main.o
       1432         76       5190          0     245761       9312   ov5640.o
        380         12          0          0          0       2549   sccb.o
        204          8         20          1          0       3179   sd_diskio.o
@@ -5764,7 +5764,7 @@ Image component sizes
         16          4         16          4          0       3365   system_stm32f7xx.o
 
     ----------------------------------------------------------------------
-     24540        878       6802         48     322312     431092   Object Totals
+     24540        878       6802         48     322312     431086   Object Totals
          0          0         32          0          0          0   (incl. Generated)
         46          0          5          9         12          0   (incl. Padding)
 
@@ -5811,8 +5811,8 @@ Image component sizes
 
       Code (inc. data)   RO Data    RW Data    ZI Data      Debug   
 
-     25298        904       6802         48     322312     431308   Grand Totals
-     25298        904       6802         48     322312     431308   ELF Image Totals
+     25298        904       6802         48     322312     431302   Grand Totals
+     25298        904       6802         48     322312     431302   ELF Image Totals
      25298        904       6802         48          0          0   ROM Totals
 
 ==============================================================================
