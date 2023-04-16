@@ -1,6 +1,5 @@
 --cpu Cortex-M7.fp.sp
 "dds\startup_stm32f746xx.o"
-"dds\audio.o"
 "dds\main.o"
 "dds\bsp_driver_sd.o"
 "dds\sd_diskio.o"
@@ -13,6 +12,7 @@
 "dds\sdio.o"
 "dds\dsp.o"
 "dds\led.o"
+"dds\audio.o"
 "dds\stm32f7xx_hal_rcc.o"
 "dds\stm32f7xx_hal_rcc_ex.o"
 "dds\stm32f7xx_hal_flash.o"

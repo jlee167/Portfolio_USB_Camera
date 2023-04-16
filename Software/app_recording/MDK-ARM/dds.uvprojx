@@ -463,11 +463,6 @@
           <GroupName>Application/User</GroupName>
           <Files>
             <File>
-              <FileName>audio.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\audio.c</FilePath>
-            </File>
-            <File>
               <FileName>main.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Src/main.c</FilePath>
@@ -508,39 +503,14 @@
               <FilePath>..\Src\camera.c</FilePath>
             </File>
             <File>
-              <FileName>camera.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\Inc\camera.h</FilePath>
-            </File>
-            <File>
-              <FileName>configs.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\Inc\configs.h</FilePath>
-            </File>
-            <File>
-              <FileName>audio.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\Inc\audio.h</FilePath>
-            </File>
-            <File>
               <FileName>gpio.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Src\gpio.c</FilePath>
             </File>
             <File>
-              <FileName>gpio.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\Inc\gpio.h</FilePath>
-            </File>
-            <File>
               <FileName>sdio.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Src\sdio.c</FilePath>
-            </File>
-            <File>
-              <FileName>sdio.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\Inc\sdio.h</FilePath>
             </File>
             <File>
               <FileName>dsp.c</FileName>
@@ -553,19 +523,9 @@
               <FilePath>..\Src\led.c</FilePath>
             </File>
             <File>
-              <FileName>board.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\Inc\board.h</FilePath>
-            </File>
-            <File>
-              <FileName>dsp.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\Inc\dsp.h</FilePath>
-            </File>
-            <File>
-              <FileName>led.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\Inc\led.h</FilePath>
+              <FileName>audio.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\audio.c</FilePath>
             </File>
           </Files>
         </Group>

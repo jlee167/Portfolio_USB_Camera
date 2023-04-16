@@ -6,6 +6,8 @@
 #define I2S_QUEUE_LEN  				(3)
 
 
+#define DEBOUNCE_THRESHOLD 	(20)
+
 
 enum AppStatus{
 	OK,

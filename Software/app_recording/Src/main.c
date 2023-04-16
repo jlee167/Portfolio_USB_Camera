@@ -13,6 +13,7 @@
 #include "audio.h"
 #include "gpio.h"
 #include "sdio.h"
+#include "state_macros.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -22,7 +23,6 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -31,7 +31,6 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -43,15 +42,7 @@ DMA_HandleTypeDef hdma_spi1_rx;
 SD_HandleTypeDef hsd1;
 
 /* USER CODE BEGIN PV */
-volatile bool running = false;
-volatile int exti3_int_cnt = 0;
-
-void start_recording();
-void stop_recording();
-
-void file_err_handler(void);
-
-volatile bool init_done = false;
+volatile AppState state = INITIALIZING;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -61,8 +52,12 @@ static void MX_DMA_Init(void);
 static void MX_I2S1_Init(void);
 static void MX_DCMI_Init(void);
 static void MX_SDMMC1_SD_Init(void);
-/* USER CODE BEGIN PFP */
 
+/* USER CODE BEGIN PFP */
+static void start_recording(void);
+static void stop_recording(void);
+static void toggle_record_state();
+static void handle_btn_events(uint16_t pin);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -77,7 +72,6 @@ static void MX_SDMMC1_SD_Init(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -104,32 +98,23 @@ int main(void)
   MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
 
-  if (HAL_I2S_DeInit(&hi2s1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  HAL_Delay(100);
-
   init_gpio();
   init_sd_fatfs();
   init_camera();
-  init_lpf();
+	init_audio();
 
   led_ready();
-  init_done = true;
+	state = SUSPENDED;
 
   /* USER CODE END 2 */
-
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
   while (1)
   {
     /* USER CODE END WHILE */
-
     /* USER CODE BEGIN 3 */
-    app_background_audio(running);
+    app_background_audio(state);
     app_background_camera(&hdcmi);
   }
   /* USER CODE END 3 */
@@ -199,13 +184,9 @@ void SystemClock_Config(void)
  */
 static void MX_DCMI_Init(void)
 {
-
   /* USER CODE BEGIN DCMI_Init 0 */
-
   /* USER CODE END DCMI_Init 0 */
-
   /* USER CODE BEGIN DCMI_Init 1 */
-
   /* USER CODE END DCMI_Init 1 */
   hdcmi.Instance = DCMI;
   hdcmi.Init.SynchroMode = DCMI_SYNCHRO_HARDWARE;
@@ -224,7 +205,6 @@ static void MX_DCMI_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN DCMI_Init 2 */
-
   /* USER CODE END DCMI_Init 2 */
 }
 
@@ -235,13 +215,9 @@ static void MX_DCMI_Init(void)
  */
 static void MX_I2S1_Init(void)
 {
-
   /* USER CODE BEGIN I2S1_Init 0 */
-
   /* USER CODE END I2S1_Init 0 */
-
   /* USER CODE BEGIN I2S1_Init 1 */
-
   /* USER CODE END I2S1_Init 1 */
   hi2s1.Instance = SPI1;
   hi2s1.Init.Mode = I2S_MODE_MASTER_RX;
@@ -256,7 +232,6 @@ static void MX_I2S1_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN I2S1_Init 2 */
-
   /* USER CODE END I2S1_Init 2 */
 }
 
@@ -269,11 +244,8 @@ static void MX_SDMMC1_SD_Init(void)
 {
 
   /* USER CODE BEGIN SDMMC1_Init 0 */
-
   /* USER CODE END SDMMC1_Init 0 */
-
   /* USER CODE BEGIN SDMMC1_Init 1 */
-
   /* USER CODE END SDMMC1_Init 1 */
   hsd1.Instance = SDMMC1;
   hsd1.Init.ClockEdge = SDMMC_CLOCK_EDGE_RISING;
@@ -283,7 +255,6 @@ static void MX_SDMMC1_SD_Init(void)
   hsd1.Init.HardwareFlowControl = SDMMC_HARDWARE_FLOW_CONTROL_DISABLE;
   hsd1.Init.ClockDiv = 0;
   /* USER CODE BEGIN SDMMC1_Init 2 */
-
   /* USER CODE END SDMMC1_Init 2 */
 }
 
@@ -395,64 +366,89 @@ static void MX_GPIO_Init(void)
   HAL_NVIC_EnableIRQ(EXTI3_IRQn);
 }
 
+
+
+
+
 /* USER CODE BEGIN 4 */
-
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+void stop_recording()
 {
-  exti3_int_cnt++;
+  stop_camera();
+  stop_audio();
+  led_stop();
+	
+	state = SUSPENDED;
+}
 
-  if (!init_done)
+
+void start_recording()
+{
+  led_success();
+  start_audio();
+  start_camera();
+  led_ready();
+	
+  state = RUNNING;
+}
+
+
+void toggle_record_state()
+{
+	switch (state){
+		default: break;
+		
+		case SUSPENDED: 
+			start_recording();
+			break;
+		
+		case RUNNING:
+			stop_recording();
+			break;
+	}
+}
+
+
+void handle_btn_events(uint16_t pin)
+{
+  if (state == INITIALIZING)
     return;
 
   /* Begin critical section */
-  HAL_NVIC_DisableIRQ(EXTI2_IRQn);
-  HAL_NVIC_DisableIRQ(EXTI3_IRQn);
-
+  disable_gpio_irq_all();
   led_stop();
 
-  static int debounce_threshhold = 20;
-  for (int cnt = 0; cnt < debounce_threshhold;)
+	/* Debouncing logic. Waits for button to be released. */
+  for (int cnt = 0; cnt < DEBOUNCE_THRESHOLD; cnt++)
   {
     HAL_Delay(10);
-    if (HAL_GPIO_ReadPin(GPIOD, GPIO_Pin) == GPIO_PIN_RESET)
-    {
+    if (HAL_GPIO_ReadPin(GPIOD, pin) == GPIO_PIN_RESET)
       cnt = 0;
-    }
-    else
-    {
-      cnt++;
-    }
   }
+	
 
-  switch (GPIO_Pin)
+  switch (pin)
   {
-  case BTN_FLASHLIGHT:
-    toggle_flashlight();
-    break;
+		default:
+			break;
+		
+		case BTN_FLASHLIGHT:
+			toggle_flashlight();
+			break;
 
-  case BTN_RECORDING:
-    led_success();
-
-    if (!running)
-    {
-      start_recording();
-    }
-    else
-    {
-      stop_recording();
-    }
-    break;
-
-  default:
-    break;
+		case BTN_RECORDING:
+			led_success();
+			toggle_record_state();
+			break;
   }
 
   /* End critical section and resume interrupts */
-  HAL_NVIC_EnableIRQ(EXTI2_IRQn);
-  HAL_NVIC_EnableIRQ(EXTI3_IRQn);
-  HAL_NVIC_ClearPendingIRQ(EXTI2_IRQn);
-  HAL_NVIC_ClearPendingIRQ(EXTI3_IRQn);
-  __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_3);
+  restart_gpio_irq_all();
+}
+
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	handle_btn_events(GPIO_Pin);
 }
 
 void HAL_I2S_RxCpltCallback(I2S_HandleTypeDef *hi2s)
@@ -462,23 +458,7 @@ void HAL_I2S_RxCpltCallback(I2S_HandleTypeDef *hi2s)
 
 void HAL_I2S_ErrorCallback(I2S_HandleTypeDef *hi2s)
 {
-}
-
-void stop_recording()
-{
-  running = false;
-  stop_camera();
-  stop_audio();
-  led_stop();
-}
-
-void start_recording()
-{
-  led_success();
-  start_audio();
-  start_camera();
-  led_ready();
-  running = true;
+	
 }
 
 /* USER CODE END 4 */
@@ -490,8 +470,6 @@ void start_recording()
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
-
   /* USER CODE END Error_Handler_Debug */
 }
 

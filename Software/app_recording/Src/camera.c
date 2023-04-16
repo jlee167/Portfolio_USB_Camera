@@ -118,6 +118,7 @@ void dcmi_to_fs(DCMI_HandleTypeDef *hdcmi)
   __HAL_DCMI_ENABLE_IT(hdcmi, DCMI_IT_FRAME);
 }
 
+
 void app_background_camera(DCMI_HandleTypeDef *hdcmi)
 {
   if (dcmi_data_valid)

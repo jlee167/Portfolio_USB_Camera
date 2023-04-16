@@ -3,9 +3,9 @@
 #include <stdio.h>
 
 #include "fatfs.h"
-#include "file_gen.h"
 #include "configs.h"
 #include "led.h"
+#include "state_macros.h"
 
 extern I2S_HandleTypeDef hi2s1;
 
@@ -42,6 +42,10 @@ uint8_t getNextI2sQueueHead() {
 	return is_last_idx ? 0 : i2s_queue_head+1;
 }
 
+
+void init_audio(void) {
+	HAL_I2S_DeInit(&hi2s1);
+}
 
 
 void app_audio_callback(I2S_HandleTypeDef *hi2s) {
@@ -152,8 +156,8 @@ void stop_audio(void) {
 }
 
 
-void app_background_audio(bool running){
-	if (!running) {
+void app_background_audio(AppState state){
+	if (state != RUNNING) {
 		if (i2s_file_opened) {
 			i2s_file_opened = false;
 			result_audio_close = FR_DENIED;

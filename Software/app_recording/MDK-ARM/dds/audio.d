@@ -1,4 +1,5 @@
-dds/audio.o: audio.c C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdbool.h \
+dds/audio.o: ..\Src\audio.c \
+  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdbool.h \
   C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\string.h \
   C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdio.h ..\Inc\fatfs.h \
   ..\Middlewares\Third_Party\FatFs\src\ff.h \
@@ -42,4 +43,4 @@ dds/audio.o: audio.c C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdbool.h \
   ..\Middlewares\Third_Party\FatFs\src\ff_gen_drv.h \
   ..\Middlewares\Third_Party\FatFs\src\diskio.h \
   ..\Middlewares\Third_Party\FatFs\src\ff.h ..\Inc\sd_diskio.h \
-  file_gen.h ..\Inc\configs.h ..\Inc\led.h
+  ..\Inc\configs.h ..\Inc\led.h ..\Inc\state_macros.h

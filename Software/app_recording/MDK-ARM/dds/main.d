@@ -48,5 +48,5 @@ dds/main.o: ..\Src\main.c ..\Inc\main.h \
   C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\float.h ..\Inc\board.h \
   ..\Inc\led.h ..\Inc\camera.h ..\Inc\configs.h ..\Inc\audio.h \
   C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdbool.h ..\Inc\gpio.h \
-  ..\Inc\sdio.h ..\Inc\fatfs.h \
+  ..\Inc\sdio.h ..\Inc\fatfs.h ..\Inc\state_macros.h \
   C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdio.h
